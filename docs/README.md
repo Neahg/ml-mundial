@@ -32,3 +32,6 @@ SQLite no es recomendado en entornos multi-contenedor (problemas de concurrencia
 
 **¿Por qué el training es un servicio separado y no parte de la API?**
 Principio de responsabilidad única. El entrenamiento es una tarea batch que corre una vez; la API es un servidor que responde en tiempo real. Mezclarlos haría los contenedores más grandes y difíciles de mantener.
+
+
+<img width="1255" height="848" alt="image" src="https://github.com/user-attachments/assets/317a5123-e958-46a8-a778-b704ca295a5e" />
