@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+
+  # ── Base de datos PostgreSQL ─────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: mundial_db
+    environment:
+      POSTGRES_DB: mundial_ml
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d mundial_ml"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mundial_net
+
+  # ── Servicio de entrenamiento ────────────────────────────────────────────────
+  training:
+    build:
+      context: ./services/training
+      dockerfile: Dockerfile
+    container_name: mundial_training
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: mundial_ml
+      DB_USER: admin
+      DB_PASS: admin123
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mundial_net
+
+  # ── API REST (Flask) ─────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: mundial_api
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/app/models
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: mundial_ml
+      DB_USER: admin
+      DB_PASS: admin123
+    depends_on:
+      db:
+        condition: service_healthy
+      training:
+        condition: service_completed_successfully
+    networks:
+      - mundial_net
+
+  # ── Frontend (React) ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: mundial_frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    depends_on:
+      - api
+    networks:
+      - mundial_net
+
+volumes:
+  postgres_data:
+
+networks:
+  mundial_net:
+    driver: bridge
